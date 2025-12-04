@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top-right loop (Magenta/Pink) -->
+  <path d="M384 128C384 92.6538 355.346 64 320 64C284.654 64 256 92.6538 256 128C256 163.346 284.654 192 320 192C355.346 192 384 163.346 384 128Z" fill="none" stroke="#D91E84" stroke-width="40"/>
+  
+  <!-- Top-left loop (Yellow/Gold) -->
+  <path d="M256 128C256 92.6538 227.346 64 192 64C156.654 64 128 92.6538 128 128C128 163.346 156.654 192 192 192C227.346 192 256 163.346 256 128Z" fill="none" stroke="#F4B636" stroke-width="40"/>
+  
+  <!-- Bottom-right loop (Light Blue/Cyan) -->
+  <path d="M384 384C384 348.654 355.346 320 320 320C284.654 320 256 348.654 256 384C256 419.346 284.654 448 320 448C355.346 448 384 419.346 384 384Z" fill="none" stroke="#5BC2E7" stroke-width="40"/>
+  
+  <!-- Bottom-left loop (Teal/Green) -->
+  <path d="M256 384C256 348.654 227.346 320 192 320C156.654 320 128 348.654 128 384C128 419.346 156.654 448 192 448C227.346 448 256 419.346 256 384Z" fill="none" stroke="#72C5B7" stroke-width="40"/>
+  
+  <!-- Diagonal connections -->
+  <line x1="320" y1="160" x2="192" y2="352" stroke="#D91E84" stroke-width="40" stroke-linecap="round"/>
+  <line x1="192" y1="160" x2="320" y2="352" stroke="#F4B636" stroke-width="40" stroke-linecap="round"/>
+</svg>

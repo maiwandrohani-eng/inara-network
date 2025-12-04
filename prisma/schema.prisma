@@ -1,0 +1,1632 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User accounts for the platform
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          UserRole  @default(MEMBER)
+  avatar        String?
+  phone         String?
+  verified      Boolean   @default(false)
+  bio           String?   @db.Text
+  expertise     String[]  // Areas of expertise
+  profession    String?   // Doctor, Nurse, Psychologist, etc.
+  
+  // Member type
+  memberType    MemberType @default(ORGANIZATIONAL)
+  membershipTier MembershipTier @default(ASSOCIATE)
+  membershipStartDate DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  
+  messages      Message[]
+  projects      ProjectMember[]
+  activities    Activity[]
+  notifications Notification[]
+  servicesReceived ServiceUtilization[]
+  trainingsAttended TrainingParticipant[]
+  eventsAttended EventParticipant[]
+  assessments   Assessment[]
+  certificates  Certificate[]
+  forumPosts    ForumPost[]
+  forumComments ForumComment[]
+  workingGroupMembers WorkingGroupMember[]
+  
+  // Regional coordination
+  coordinatorFor Region[] @relation("RegionalCoordinator")
+  focalPointFor  Region[] @relation("RegionalFocalPoint")
+  
+  @@index([email])
+  @@index([organizationId])
+  @@index([memberType])
+  @@index([membershipTier])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  NETWORK_COORDINATOR
+  REGIONAL_COORDINATOR
+  MEMBER
+  VIEWER
+}
+
+enum MemberType {
+  CORE          // INARA central coordinating body
+  ORGANIZATIONAL // NGOs, healthcare institutions, humanitarian agencies
+  INDIVIDUAL    // Medical professionals and humanitarian workers
+}
+
+enum MembershipTier {
+  CORE
+  FULL
+  ASSOCIATE
+  OBSERVER
+}
+
+// Humanitarian organizations in the network
+model Organization {
+  id              String             @id @default(cuid())
+  name            String             @unique
+  slug            String             @unique
+  description     String?            @db.Text
+  type            OrganizationType
+  size            OrganizationSize
+  verified        Boolean            @default(false)
+  website         String?
+  email           String
+  phone           String?
+  logo            String?
+  
+  // Location
+  country         String
+  city            String?
+  address         String?
+  latitude        Float?
+  longitude       Float?
+  
+  // Operational details
+  foundedYear     Int?
+  registrationNumber String?
+  taxId           String?
+  legalStatus     String?            // Registered, Certified, etc.
+  
+  // Capabilities
+  focusAreas      String[]           // e.g., ["HEALTH", "EDUCATION", "SHELTER"]
+  operatingRegions String[]          // Countries/regions where they operate
+  languages       String[]
+  staffCount      Int?
+  volunteerCount  Int?
+  annualBudget    Decimal?           @db.Decimal(15, 2)
+  
+  // Social media
+  facebook        String?
+  twitter         String?
+  linkedin        String?
+  
+  // Membership details
+  membershipTier  MembershipTier     @default(ASSOCIATE)
+  membershipStartDate DateTime?
+  membershipEndDate   DateTime?
+  
+  status          OrganizationStatus @default(PENDING)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  // Relations
+  users           User[]
+  projects        Project[]
+  resources       Resource[]
+  partnerships    Partnership[]      @relation("PartnerOrg")
+  partnerOf       Partnership[]      @relation("WithOrg")
+  application     Application?
+  servicesReceived ServiceUtilization[]
+  assessments     Assessment[]
+  fundingReceived FundingReceived[]
+  proposalsSubmitted ProposalSupport[]
+  
+  @@index([slug])
+  @@index([country])
+  @@index([status])
+  @@index([membershipTier])
+}
+
+enum OrganizationType {
+  NGO
+  INGO
+  UN_AGENCY
+  GOVERNMENT
+  FAITH_BASED
+  COMMUNITY
+  PRIVATE_SECTOR
+  ACADEMIC
+  HEALTHCARE_INSTITUTION
+  HUMANITARIAN_AGENCY
+}
+
+enum OrganizationSize {
+  SMALL         // < 50 staff
+  MEDIUM        // 50-500 staff
+  LARGE         // > 500 staff
+}
+
+enum OrganizationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+  REJECTED
+}
+
+// Application process for joining the network
+model Application {
+  id              String            @id @default(cuid())
+  
+  organization    Organization      @relation(fields: [organizationId], references: [id])
+  organizationId  String            @unique
+  
+  // Application stages
+  status          ApplicationStatus @default(SUBMITTED)
+  stage           ApplicationStage  @default(DOCUMENT_REVIEW)
+  
+  // Submitted documents
+  registrationCertificate String?   // File URL
+  financialStatements     String?   // File URL
+  projectList             String?   // File URL
+  workSamples             String[]  // Array of file URLs (project reports)
+  policies                String[]  // Array of policy document URLs
+  otherDocuments          String[]  // Additional documents
+  
+  // Application details
+  applicationLetter       String?   @db.Text
+  motivationStatement     String?   @db.Text
+  referenceName           String?
+  referenceEmail          String?
+  referencePhone          String?
+  
+  // Review process
+  reviewedBy      String?           // Admin user ID
+  reviewDate      DateTime?
+  reviewNotes     String?           @db.Text
+  approvedBy      String?           // Admin user ID
+  approvalDate    DateTime?
+  rejectionReason String?           @db.Text
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  @@index([status])
+  @@index([stage])
+  @@index([organizationId])
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ADDITIONAL_INFO_REQUIRED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationStage {
+  DOCUMENT_REVIEW
+  ELIGIBILITY_CHECK
+  INTERVIEW
+  FINAL_APPROVAL
+  COMPLETED
+}
+
+// Relief and aid projects
+model Project {
+  id              String         @id @default(cuid())
+  title           String
+  slug            String         @unique
+  description     String         @db.Text
+  shortDescription String?       @db.Text
+  
+  // Project details
+  type            ProjectType
+  status          ProjectStatus  @default(PLANNING)
+  priority        Priority       @default(MEDIUM)
+  
+  // Location
+  country         String
+  region          String?
+  city            String?
+  latitude        Float?
+  longitude       Float?
+  
+  // Timing
+  startDate       DateTime?
+  endDate         DateTime?
+  estimatedDuration String?
+  
+  // Scope
+  targetBeneficiaries Int?
+  currentBeneficiaries Int?
+  budget          Decimal?       @db.Decimal(12, 2)
+  fundingReceived Decimal?       @db.Decimal(12, 2)
+  
+  // Categories
+  sectors         String[]       // WASH, Health, Education, etc.
+  tags            String[]
+  
+  // Media
+  images          String[]
+  documents       String[]
+  
+  // Relations
+  organization    Organization   @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  members         ProjectMember[]
+  resources       ProjectResource[]
+  updates         ProjectUpdate[]
+  
+  @@index([slug])
+  @@index([status])
+  @@index([organizationId])
+  @@index([country])
+}
+
+enum ProjectType {
+  EMERGENCY_RESPONSE
+  DEVELOPMENT
+  ADVOCACY
+  CAPACITY_BUILDING
+  RESEARCH
+  COORDINATION
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// Project team members
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      String   // e.g., "Project Manager", "Field Coordinator"
+  joinedAt  DateTime @default(now())
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+// Project status updates
+model ProjectUpdate {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  images      String[]
+  createdAt   DateTime @default(now())
+  
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  
+  @@index([projectId])
+}
+
+// Resources available for sharing
+model Resource {
+  id              String         @id @default(cuid())
+  name            String
+  description     String         @db.Text
+  type            ResourceType
+  category        String         // More specific categorization
+  
+  // Availability
+  quantity        Int?
+  unit            String?        // e.g., "boxes", "kg", "units"
+  available       Boolean        @default(true)
+  
+  // Location
+  location        String
+  country         String
+  latitude        Float?
+  longitude       Float?
+  
+  // Conditions
+  condition       String?        // NEW, USED, REFURBISHED
+  expiryDate      DateTime?
+  
+  // Media
+  images          String[]
+  documents       String[]
+  
+  // Contact
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  
+  organization    Organization   @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  projects        ProjectResource[]
+  
+  @@index([type])
+  @@index([organizationId])
+  @@index([country])
+}
+
+enum ResourceType {
+  EQUIPMENT
+  SUPPLIES
+  MEDICINE
+  FOOD
+  SHELTER_MATERIALS
+  VEHICLES
+  TECHNOLOGY
+  EXPERTISE
+  FUNDING
+  VOLUNTEERS
+}
+
+// Many-to-many relationship between Projects and Resources
+model ProjectResource {
+  id           String   @id @default(cuid())
+  quantityUsed Int?
+  allocatedAt  DateTime @default(now())
+  
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+  
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resourceId   String
+  
+  @@unique([projectId, resourceId])
+  @@index([projectId])
+  @@index([resourceId])
+}
+
+// Partnerships between organizations
+model Partnership {
+  id              String           @id @default(cuid())
+  type            PartnershipType
+  description     String?          @db.Text
+  startDate       DateTime
+  endDate         DateTime?
+  status          PartnershipStatus @default(ACTIVE)
+  
+  organization    Organization     @relation("PartnerOrg", fields: [organizationId], references: [id])
+  organizationId  String
+  
+  partner         Organization     @relation("WithOrg", fields: [partnerId], references: [id])
+  partnerId       String
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([organizationId, partnerId])
+  @@index([organizationId])
+  @@index([partnerId])
+}
+
+enum PartnershipType {
+  STRATEGIC
+  OPERATIONAL
+  FUNDING
+  TECHNICAL
+  ADVOCACY
+}
+
+enum PartnershipStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// Communication messages
+model Message {
+  id          String      @id @default(cuid())
+  subject     String?
+  content     String      @db.Text
+  read        Boolean     @default(false)
+  type        MessageType @default(DIRECT)
+  
+  sender      User        @relation(fields: [senderId], references: [id])
+  senderId    String
+  
+  recipientEmail String?   // For external recipients
+  threadId    String?     // For grouping related messages
+  
+  attachments String[]
+  
+  createdAt   DateTime    @default(now())
+  
+  @@index([senderId])
+  @@index([recipientEmail])
+  @@index([threadId])
+}
+
+enum MessageType {
+  DIRECT
+  BROADCAST
+  ALERT
+  SYSTEM
+}
+
+// Activity log for tracking actions
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?      @db.Text
+  metadata    Json?        // Store additional data
+  
+  user        User         @relation(fields: [userId], references: [id])
+  userId      String
+  
+  createdAt   DateTime     @default(now())
+  
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum ActivityType {
+  USER_REGISTERED
+  USER_LOGIN
+  ORG_CREATED
+  ORG_VERIFIED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  RESOURCE_ADDED
+  RESOURCE_ALLOCATED
+  PARTNERSHIP_FORMED
+  MESSAGE_SENT
+  APPLICATION_SUBMITTED
+  APPLICATION_APPROVED
+  SERVICE_PROVIDED
+  TRAINING_COMPLETED
+  EVENT_ATTENDED
+  CERTIFICATE_ISSUED
+}
+
+// Notifications
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  link      String?
+  
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([read])
+}
+
+// ==================== SERVICES PROVIDED BY INARA ====================
+
+// Services offered to network members
+model Service {
+  id              String            @id @default(cuid())
+  name            String
+  slug            String            @unique
+  description     String            @db.Text
+  category        ServiceCategory
+  
+  // Service details
+  deliveryMode    DeliveryMode      // Online, In-person, Hybrid
+  duration        String?           // e.g., "3 months", "1 week"
+  prerequisites   String?           @db.Text
+  objectives      String[]
+  materials       String[]          // URLs to materials/resources
+  
+  // Availability
+  active          Boolean           @default(true)
+  capacity        Int?              // Max participants
+  cost            Decimal?          @db.Decimal(10, 2) // Free for members but track value
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  utilization     ServiceUtilization[]
+  
+  @@index([category])
+  @@index([active])
+}
+
+enum ServiceCategory {
+  TECHNICAL_ASSISTANCE
+  CONSULTING
+  GRANT_MANAGEMENT
+  PROPOSAL_DEVELOPMENT
+  MONITORING_EVALUATION
+  RESOURCE_MOBILIZATION
+  NETWORKING
+  ADVOCACY
+  CAPACITY_BUILDING
+  LEGAL_SUPPORT
+  FINANCIAL_MANAGEMENT
+  OTHER
+}
+
+enum DeliveryMode {
+  ONLINE
+  IN_PERSON
+  HYBRID
+  SELF_PACED
+}
+
+// Track service utilization by members
+model ServiceUtilization {
+  id              String      @id @default(cuid())
+  
+  service         Service     @relation(fields: [serviceId], references: [id])
+  serviceId       String
+  
+  // Can be provided to organization or individual
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  organizationId  String?
+  
+  user            User?       @relation(fields: [userId], references: [id])
+  userId          String?
+  
+  status          ServiceStatus @default(REQUESTED)
+  requestDate     DateTime    @default(now())
+  startDate       DateTime?
+  completionDate  DateTime?
+  
+  // Outcomes
+  feedback        String?     @db.Text
+  rating          Int?        // 1-5
+  impact          String?     @db.Text
+  notes           String?     @db.Text
+  
+  @@index([serviceId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum ServiceStatus {
+  REQUESTED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ==================== CAPACITY BUILDING & TRAINING ====================
+
+// Training programs
+model Training {
+  id              String            @id @default(cuid())
+  title           String
+  slug            String            @unique
+  description     String            @db.Text
+  category        TrainingCategory
+  
+  // Training details
+  deliveryMode    DeliveryMode
+  duration        String            // e.g., "2 days", "4 weeks"
+  level           TrainingLevel
+  language        String[]
+  maxParticipants Int?
+  
+  // Content
+  objectives      String[]
+  topics          String[]
+  materials       String[]          // URLs to training materials
+  certificate     Boolean           @default(true) // Issues certificate
+  
+  // Schedule
+  startDate       DateTime?
+  endDate         DateTime?
+  applicationDeadline DateTime?
+  
+  // Status
+  status          TrainingStatus    @default(PLANNED)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  participants    TrainingParticipant[]
+  
+  @@index([category])
+  @@index([status])
+}
+
+enum TrainingCategory {
+  GOVERNANCE
+  FINANCIAL_MANAGEMENT
+  MONITORING_EVALUATION
+  PROJECT_MANAGEMENT
+  PROPOSAL_WRITING
+  FUNDRAISING
+  LEADERSHIP
+  COMMUNICATION
+  HR_MANAGEMENT
+  SAFEGUARDING
+  ACCOUNTABILITY
+  STRATEGIC_PLANNING
+  OTHER
+}
+
+enum TrainingLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+enum TrainingStatus {
+  PLANNED
+  OPEN_FOR_REGISTRATION
+  REGISTRATION_CLOSED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+// Training participants
+model TrainingParticipant {
+  id              String      @id @default(cuid())
+  
+  training        Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId      String
+  
+  user            User        @relation(fields: [userId], references: [id])
+  userId          String
+  
+  status          ParticipantStatus @default(REGISTERED)
+  registeredAt    DateTime    @default(now())
+  attendanceRate  Int?        // Percentage
+  completedAt     DateTime?
+  
+  // Assessment
+  preAssessmentScore  Int?
+  postAssessmentScore Int?
+  feedback            String? @db.Text
+  certificateIssued   Boolean @default(false)
+  
+  @@unique([trainingId, userId])
+  @@index([trainingId])
+  @@index([userId])
+}
+
+enum ParticipantStatus {
+  REGISTERED
+  CONFIRMED
+  ATTENDED
+  COMPLETED
+  DROPPED
+  NO_SHOW
+}
+
+// ==================== ASSESSMENTS & ORGANIZATIONAL STRENGTHENING ====================
+
+// Organizational capacity assessments
+model Assessment {
+  id              String          @id @default(cuid())
+  
+  organization    Organization?   @relation(fields: [organizationId], references: [id])
+  organizationId  String?
+  
+  user            User?           @relation(fields: [userId], references: [id])
+  userId          String?
+  
+  type            AssessmentType
+  assessmentDate  DateTime        @default(now())
+  assessor        String?         // Name of assessor
+  
+  // Scores by area (0-100)
+  governanceScore       Int?
+  financialScore        Int?
+  programmaticScore     Int?
+  hrScore               Int?
+  monitoringScore       Int?
+  overallScore          Int?
+  
+  // Results
+  strengths       String[]
+  weaknesses      String[]
+  recommendations String[]
+  
+  // Reports
+  reportUrl       String?
+  
+  improvementPlan ImprovementPlan?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([type])
+}
+
+enum AssessmentType {
+  ORGANIZATIONAL_CAPACITY
+  FINANCIAL_HEALTH
+  GOVERNANCE
+  SAFEGUARDING
+  PROJECT_MANAGEMENT
+  OTHER
+}
+
+// Improvement plans based on assessments
+model ImprovementPlan {
+  id              String      @id @default(cuid())
+  
+  assessment      Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessmentId    String      @unique
+  
+  goals           String[]
+  milestones      Milestone[]
+  
+  startDate       DateTime
+  targetEndDate   DateTime
+  actualEndDate   DateTime?
+  
+  status          PlanStatus  @default(IN_PROGRESS)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([status])
+}
+
+enum PlanStatus {
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  ABANDONED
+}
+
+// Milestones within improvement plans
+model Milestone {
+  id              String          @id @default(cuid())
+  
+  plan            ImprovementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId          String
+  
+  title           String
+  description     String?         @db.Text
+  targetDate      DateTime
+  completedDate   DateTime?
+  status          MilestoneStatus @default(PENDING)
+  
+  evidence        String[]        // URLs to supporting documents
+  
+  @@index([planId])
+  @@index([status])
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+// Certificates and badges
+model Certificate {
+  id              String          @id @default(cuid())
+  
+  user            User            @relation(fields: [userId], references: [id])
+  userId          String
+  
+  type            CertificateType
+  title           String
+  description     String?         @db.Text
+  issueDate       DateTime        @default(now())
+  expiryDate      DateTime?
+  
+  // Details
+  trainingId      String?         // If from training
+  achievementType String?         // Badge type
+  certificateUrl  String?         // URL to certificate PDF
+  verificationCode String?        @unique
+  
+  @@index([userId])
+  @@index([type])
+}
+
+enum CertificateType {
+  TRAINING_COMPLETION
+  ACHIEVEMENT_BADGE
+  ACCREDITATION
+  MEMBERSHIP
+  OTHER
+}
+
+// ==================== FUNDING & RESOURCE MOBILIZATION ====================
+
+// Grant and funding opportunities
+model FundingOpportunity {
+  id              String              @id @default(cuid())
+  title           String
+  slug            String              @unique
+  description     String              @db.Text
+  
+  // Funder details
+  funderName      String
+  funderType      FunderType
+  funderWebsite   String?
+  contactEmail    String?
+  
+  // Funding details
+  fundingType     FundingType
+  amount          Decimal?            @db.Decimal(15, 2)
+  currency        String              @default("USD")
+  amountRange     String?             // e.g., "$10,000 - $50,000"
+  
+  // Eligibility
+  eligibleRegions String[]
+  eligibleSectors String[]
+  eligibleOrgTypes String[]
+  
+  // Dates
+  openDate        DateTime
+  deadline        DateTime
+  awardDate       DateTime?
+  
+  // Application
+  applicationUrl  String?
+  guidelines      String?             // URL to guidelines
+  requirements    String[]
+  
+  status          OpportunityStatus   @default(OPEN)
+  
+  // Tracking
+  proposalsSubmitted ProposalSupport[]
+  successStories  FundingReceived[]
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  @@index([status])
+  @@index([deadline])
+  @@index([funderType])
+}
+
+enum FunderType {
+  BILATERAL
+  MULTILATERAL
+  FOUNDATION
+  CORPORATE
+  INDIVIDUAL
+  GOVERNMENT
+  UN_AGENCY
+  OTHER
+}
+
+enum FundingType {
+  GRANT
+  CONTRACT
+  COOPERATIVE_AGREEMENT
+  PRIZE
+  LOAN
+  EQUITY
+  OTHER
+}
+
+enum OpportunityStatus {
+  UPCOMING
+  OPEN
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+// Proposal development support tracking
+model ProposalSupport {
+  id                  String              @id @default(cuid())
+  
+  opportunity         FundingOpportunity  @relation(fields: [opportunityId], references: [id])
+  opportunityId       String
+  
+  organization        Organization        @relation(fields: [organizationId], references: [id])
+  organizationId      String
+  
+  supportType         ProposalSupportType
+  status              ProposalStatus      @default(PLANNING)
+  
+  // Support provided
+  supportStartDate    DateTime            @default(now())
+  supportEndDate      DateTime?
+  consultant          String?             // Name of consultant/advisor
+  
+  // Submission
+  submittedDate       DateTime?
+  requestedAmount     Decimal?            @db.Decimal(15, 2)
+  
+  // Outcome
+  outcome             ProposalOutcome?
+  outcomeDate         DateTime?
+  awardedAmount       Decimal?            @db.Decimal(15, 2)
+  
+  notes               String?             @db.Text
+  
+  @@index([opportunityId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum ProposalSupportType {
+  CONCEPT_NOTE
+  FULL_PROPOSAL
+  BUDGET_DEVELOPMENT
+  REVIEW_FEEDBACK
+  OTHER
+}
+
+enum ProposalStatus {
+  PLANNING
+  DRAFTING
+  REVIEW
+  SUBMITTED
+  AWAITING_RESULTS
+  COMPLETED
+}
+
+enum ProposalOutcome {
+  AWARDED
+  SHORTLISTED
+  NOT_SELECTED
+  WITHDRAWN
+}
+
+// Funding received by members (success tracking)
+model FundingReceived {
+  id              String              @id @default(cuid())
+  
+  organization    Organization        @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  
+  opportunity     FundingOpportunity? @relation(fields: [opportunityId], references: [id])
+  opportunityId   String?
+  
+  funderName      String
+  amount          Decimal             @db.Decimal(15, 2)
+  currency        String              @default("USD")
+  
+  projectTitle    String
+  projectDuration String?
+  startDate       DateTime
+  endDate         DateTime?
+  
+  inaraSupported  Boolean             @default(false) // Did INARA help secure this?
+  
+  createdAt       DateTime            @default(now())
+  
+  @@index([organizationId])
+  @@index([opportunityId])
+}
+
+// Donor database
+model Donor {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  type            FunderType
+  
+  description     String?     @db.Text
+  website         String?
+  email           String?
+  phone           String?
+  
+  // Location
+  country         String?
+  region          String?
+  
+  // Focus
+  focusAreas      String[]
+  geographicFocus String[]
+  
+  // Grant information
+  typicalGrantSize String?
+  totalAnnualGiving Decimal?  @db.Decimal(15, 2)
+  
+  // Contact
+  contactPerson   String?
+  contactEmail    String?
+  
+  active          Boolean     @default(true)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([type])
+  @@index([active])
+}
+
+// ==================== EVENTS MANAGEMENT ====================
+
+// Events (workshops, conferences, webinars, meetings)
+model Event {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String          @unique
+  description     String          @db.Text
+  
+  type            EventType
+  format          EventFormat
+  
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime
+  timezone        String          @default("UTC")
+  
+  // Location
+  venue           String?
+  address         String?
+  city            String?
+  country         String?
+  onlineUrl       String?         // For online/hybrid events
+  
+  // Registration
+  registrationOpen Boolean        @default(true)
+  registrationDeadline DateTime?
+  maxParticipants Int?
+  registrationFee Decimal?        @db.Decimal(10, 2)
+  
+  // Content
+  agenda          String?         @db.Text
+  speakers        String[]
+  topics          String[]
+  materials       String[]        // URLs to event materials
+  
+  // Recording
+  recordingUrl    String?
+  photos          String[]
+  
+  status          EventStatus     @default(PLANNED)
+  
+  participants    EventParticipant[]
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([type])
+  @@index([status])
+  @@index([startDate])
+}
+
+enum EventType {
+  WORKSHOP
+  CONFERENCE
+  WEBINAR
+  TRAINING
+  COORDINATION_MEETING
+  NETWORKING_EVENT
+  SEMINAR
+  CONSULTATION
+  OTHER
+}
+
+enum EventFormat {
+  IN_PERSON
+  ONLINE
+  HYBRID
+}
+
+enum EventStatus {
+  PLANNED
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+// Event participants
+model EventParticipant {
+  id              String      @id @default(cuid())
+  
+  event           Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId         String
+  
+  user            User        @relation(fields: [userId], references: [id])
+  userId          String
+  
+  status          EventParticipantStatus @default(REGISTERED)
+  registeredAt    DateTime    @default(now())
+  attended        Boolean     @default(false)
+  
+  feedback        String?     @db.Text
+  rating          Int?        // 1-5
+  
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+enum EventParticipantStatus {
+  REGISTERED
+  CONFIRMED
+  WAITLISTED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+}
+
+// ==================== DOCUMENT LIBRARY ====================
+
+// Document library for templates, guidelines, best practices
+model Document {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String          @unique
+  description     String?         @db.Text
+  
+  category        DocumentCategory
+  type            DocumentType
+  
+  // File details
+  fileUrl         String
+  fileName        String
+  fileSize        Int?            // In bytes
+  mimeType        String?
+  
+  // Content
+  tags            String[]
+  language        String          @default("en")
+  version         String?
+  
+  // Access control
+  visibility      DocumentVisibility @default(MEMBERS_ONLY)
+  
+  // Metadata
+  author          String?
+  publishDate     DateTime        @default(now())
+  lastReviewed    DateTime?
+  
+  downloads       Int             @default(0)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([category])
+  @@index([type])
+  @@index([visibility])
+}
+
+enum DocumentCategory {
+  TEMPLATE
+  GUIDELINE
+  BEST_PRACTICE
+  POLICY
+  PROCEDURE
+  TOOLKIT
+  CASE_STUDY
+  RESEARCH
+  REPORT
+  PRESENTATION
+  OTHER
+}
+
+enum DocumentType {
+  PDF
+  WORD
+  EXCEL
+  POWERPOINT
+  VIDEO
+  AUDIO
+  IMAGE
+  OTHER
+}
+
+enum DocumentVisibility {
+  PUBLIC
+  MEMBERS_ONLY
+  ADMIN_ONLY
+  RESTRICTED
+}
+
+// ==================== FORUMS & COMMUNICATION ====================
+
+// Announcement board
+model Announcement {
+  id              String              @id @default(cuid())
+  title           String
+  content         String              @db.Text
+  
+  type            AnnouncementType
+  priority        AnnouncementPriority @default(NORMAL)
+  
+  // Targeting
+  targetAudience  String[]            // ["ALL", "MEMBERS", "COORDINATORS"]
+  
+  // Media
+  attachments     String[]
+  
+  // Pinning
+  pinned          Boolean             @default(false)
+  pinnedUntil     DateTime?
+  
+  // Status
+  published       Boolean             @default(false)
+  publishDate     DateTime?
+  expiryDate      DateTime?
+  
+  authorId        String
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  @@index([type])
+  @@index([priority])
+  @@index([published])
+}
+
+enum AnnouncementType {
+  GENERAL
+  URGENT
+  OPPORTUNITY
+  EVENT
+  UPDATE
+  ALERT
+}
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Discussion forums
+model Forum {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  description     String?     @db.Text
+  
+  category        String
+  icon            String?
+  
+  // Access control
+  visibility      ForumVisibility @default(MEMBERS)
+  
+  // Settings
+  allowPosts      Boolean     @default(true)
+  requireModeration Boolean   @default(false)
+  
+  moderators      String[]    // User IDs
+  
+  posts           ForumPost[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([slug])
+  @@index([visibility])
+}
+
+enum ForumVisibility {
+  PUBLIC
+  MEMBERS
+  RESTRICTED
+}
+
+// Forum posts
+model ForumPost {
+  id              String        @id @default(cuid())
+  title           String
+  content         String        @db.Text
+  
+  forum           Forum         @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  forumId         String
+  
+  author          User          @relation(fields: [authorId], references: [id])
+  authorId        String
+  
+  // Post details
+  pinned          Boolean       @default(false)
+  locked          Boolean       @default(false)
+  
+  // Moderation
+  approved        Boolean       @default(true)
+  
+  // Attachments
+  attachments     String[]
+  
+  // Engagement
+  views           Int           @default(0)
+  likes           Int           @default(0)
+  
+  comments        ForumComment[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([forumId])
+  @@index([authorId])
+}
+
+// Forum comments
+model ForumComment {
+  id              String      @id @default(cuid())
+  content         String      @db.Text
+  
+  post            ForumPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId          String
+  
+  author          User        @relation(fields: [authorId], references: [id])
+  authorId        String
+  
+  // Reply to another comment
+  parentComment   ForumComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId        String?
+  replies         ForumComment[] @relation("CommentReplies")
+  
+  likes           Int         @default(0)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+// Working groups
+model WorkingGroup {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  description     String?     @db.Text
+  
+  focusArea       String
+  objectives      String[]
+  
+  // Leadership
+  leaderId        String
+  coLeaders       String[]    // User IDs
+  
+  // Settings
+  active          Boolean     @default(true)
+  private         Boolean     @default(false)
+  
+  members         WorkingGroupMember[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([slug])
+  @@index([active])
+}
+
+// Working group members
+model WorkingGroupMember {
+  id              String          @id @default(cuid())
+  
+  group           WorkingGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId         String
+  
+  user            User            @relation(fields: [userId], references: [id])
+  userId          String
+  
+  role            String?         // e.g., "Co-chair", "Secretary"
+  joinedAt        DateTime        @default(now())
+  
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+// Mailing lists
+model MailingList {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  description     String?     @db.Text
+  
+  // List details
+  email           String      @unique // e.g., members@inara-network.org
+  
+  // Settings
+  active          Boolean     @default(true)
+  moderated       Boolean     @default(false)
+  allowExternal   Boolean     @default(false)
+  
+  // Subscribers
+  subscribers     String[]    // User IDs
+  moderators      String[]    // User IDs
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([slug])
+}
+
+// ==================== REGIONAL COORDINATION ====================
+
+// Regions for network coordination
+model Region {
+  id              String      @id @default(cuid())
+  name            String      @unique
+  slug            String      @unique
+  description     String?     @db.Text
+  
+  // Geographic coverage
+  countries       String[]
+  continent       String?
+  
+  // Coordination
+  coordinator     User?       @relation("RegionalCoordinator", fields: [coordinatorId], references: [id])
+  coordinatorId   String?
+  
+  focalPoints     User[]      @relation("RegionalFocalPoint")
+  
+  // Meetings
+  meetings        CoordinationMeeting[]
+  
+  active          Boolean     @default(true)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([slug])
+}
+
+// Coordination meetings
+model CoordinationMeeting {
+  id              String      @id @default(cuid())
+  title           String
+  
+  region          Region?     @relation(fields: [regionId], references: [id])
+  regionId        String?
+  
+  type            MeetingType
+  
+  // Schedule
+  scheduledDate   DateTime
+  duration        Int?        // Minutes
+  
+  // Location
+  format          EventFormat
+  venue           String?
+  onlineUrl       String?
+  
+  // Content
+  agenda          String?     @db.Text
+  minutes         String?     @db.Text
+  actionItems     String[]
+  
+  // Participants
+  participants    String[]    // User IDs
+  
+  // Attachments
+  documents       String[]
+  recording       String?
+  
+  status          MeetingStatus @default(SCHEDULED)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([regionId])
+  @@index([scheduledDate])
+}
+
+enum MeetingType {
+  REGIONAL_COORDINATION
+  NETWORK_WIDE
+  THEMATIC
+  EMERGENCY
+  PLANNING
+  OTHER
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+// ==================== MEMBER BENEFITS ====================
+
+// Member benefits tracking
+model MemberBenefit {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  description     String      @db.Text
+  
+  category        BenefitCategory
+  
+  // Eligibility
+  availableToTiers MembershipTier[]
+  
+  // Details
+  value           String?     // e.g., "$500 discount"
+  provider        String?     // Who provides the benefit
+  instructions    String?     @db.Text
+  
+  // Redemption
+  requiresApproval Boolean    @default(false)
+  limitPerMember  Int?        // Max times a member can use this
+  
+  active          Boolean     @default(true)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  
+  redemptions     BenefitRedemption[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([category])
+  @@index([active])
+}
+
+enum BenefitCategory {
+  DISCOUNT
+  ACCESS_TO_RESOURCES
+  PRIORITY_SUPPORT
+  NETWORKING
+  VISIBILITY
+  TRAINING
+  TOOLS
+  OTHER
+}
+
+// Benefit redemptions
+model BenefitRedemption {
+  id              String        @id @default(cuid())
+  
+  benefit         MemberBenefit @relation(fields: [benefitId], references: [id])
+  benefitId       String
+  
+  userId          String
+  organizationId  String?
+  
+  redeemedAt      DateTime      @default(now())
+  notes           String?       @db.Text
+  
+  @@index([benefitId])
+  @@index([userId])
+}

@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.production
+dist/
+build/
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+coverage/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
