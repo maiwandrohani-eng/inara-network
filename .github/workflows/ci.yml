@@ -23,5 +23,13 @@ jobs:
         run: npm run lint --if-present
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Build
+        run: npm run build
+      - name: Start server (background)
+        run: |
+          npm start &
+          echo "Started server"
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000
       - name: Run tests
         run: npm test --if-present
