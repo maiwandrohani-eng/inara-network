@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/options'
+import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-const applicationSchema = z.object({
+export const applicationSchema = z.object({
   organizationId: z.string(),
   applicationLetter: z.string(),
   motivationStatement: z.string().optional(),
@@ -22,9 +23,8 @@ export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
@@ -132,17 +132,17 @@ export async function POST(req: Request) {
         type: 'APPLICATION_SUBMITTED',
         title: 'Application submitted',
         description: `Application submitted`,
-        userId: session.user.id,
+        userId: session!.user.id,
       },
-    });
+    })
 
     return NextResponse.json({ application }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid data', details: error.errors },
+        { error: 'Invalid data', details: (error as any).errors ?? (error as any).issues ?? [] },
         { status: 400 }
-      );
+      )
     }
     return NextResponse.json(
       { error: 'Something went wrong' },

@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/options'
+import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, context: any) {
+  const paramsObj = (await context.params) ?? context.params
+  const params = paramsObj as { id: string }
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const body = await req.json()
     const { action, reviewNotes, rejectionReason } = body
@@ -30,7 +29,7 @@ export async function PATCH(
     }
 
     let updateData: any = {
-      reviewedBy: session.user.id,
+      reviewedBy: session!.user.id,
       reviewDate: new Date(),
       reviewNotes,
     }
@@ -39,7 +38,7 @@ export async function PATCH(
       updateData = {
         ...updateData,
         status: 'APPROVED',
-        approvedBy: session.user.id,
+        approvedBy: session!.user.id,
         approvalDate: new Date(),
       }
 
@@ -59,7 +58,7 @@ export async function PATCH(
           type: 'APPLICATION_APPROVED',
           title: 'Application approved',
           description: `Application approved for ${application.organization.name}`,
-          userId: session.user.id,
+          userId: session!.user.id,
         },
       })
     } else if (action === 'reject') {

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '../../../auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/options'
+import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request, context: any) {
+  const paramsObj = (await context.params) ?? context.params
+  const params = paramsObj as { id: string }
   try {
     const session = await getServerSession(authOptions)
     
@@ -15,9 +15,8 @@ export async function PUT(
     }
 
     // @ts-ignore
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const body = await request.json()
 
@@ -36,10 +35,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request, context: any) {
+  const paramsObj = (await context.params) ?? context.params
+  const params = paramsObj as { id: string }
   try {
     const session = await getServerSession(authOptions)
     
@@ -48,9 +46,8 @@ export async function DELETE(
     }
 
     // @ts-ignore
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const roleCheck2 = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck2) return roleCheck2
 
     await prisma.service.delete({
       where: { id: params.id }

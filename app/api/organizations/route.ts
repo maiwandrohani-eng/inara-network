@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/options'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid data', details: error.errors },
+        { error: 'Invalid data', details: (error as any).errors ?? (error as any).issues ?? [] },
         { status: 400 }
       )
     }

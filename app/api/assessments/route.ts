@@ -23,11 +23,11 @@ export async function GET(req: Request) {
     const assessments = await prisma.assessment.findMany({
       where,
       orderBy: {
-        title: 'asc',
+        assessmentDate: 'desc',
       },
     });
     return NextResponse.json(assessments);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message ?? String(error) }, { status: 500 });
   }
 }

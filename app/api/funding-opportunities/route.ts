@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/options'
+import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -58,9 +59,8 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const body = await req.json()
     const data = fundingOpportunitySchema.parse(body)
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid data', details: error.errors },
+        { error: 'Invalid data', details: (error as any).errors ?? (error as any).issues ?? [] },
         { status: 400 }
       )
     }
