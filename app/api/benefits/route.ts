@@ -19,14 +19,14 @@ export async function GET(req: Request) {
     const where: any = {};
     if (active !== null) where.active = active === 'true';
 
-    const benefits = await prisma.benefit.findMany({
+    const benefits = await prisma.memberBenefit.findMany({
       where,
       orderBy: {
-        title: 'asc',
+        name: 'asc',
       },
     });
     return NextResponse.json(benefits);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message ?? String(error) }, { status: 500 });
   }
 }
