@@ -4,10 +4,9 @@ import { authOptions } from '@/app/api/auth/options'
 import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request, context: any) {
+  const paramsObj = (await context.params) ?? context.params
+  const params = paramsObj as { id: string }
   try {
     const session = await getServerSession(authOptions)
     
@@ -36,10 +35,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request, context: any) {
+  const paramsObj = (await context.params) ?? context.params
+  const params = paramsObj as { id: string }
   try {
     const session = await getServerSession(authOptions)
     

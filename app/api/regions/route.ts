@@ -6,7 +6,7 @@ const regionSchema = z.object({
   name: z.string(),
   slug: z.string(),
   description: z.string().optional(),
-  country: z.string(),
+  countries: z.array(z.string()).optional(),
   active: z.boolean().optional(),
 });
 
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const active = searchParams.get('active');
 
     const where: any = {};
-    if (country) where.country = country;
+    if (country) where.countries = { has: country };
     if (active !== null) where.active = active === 'true';
 
     const regions = await prisma.region.findMany({

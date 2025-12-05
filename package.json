@@ -10,7 +10,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "node --test",
-    "test:integration": "cross-env DATABASE_URL=file:./dev.db bash -lc 'npm start & npx wait-on http://localhost:3000 && node --test tests/integration'",
+    "test:integration": "bash -lc 'npx prisma db push --accept-data-loss && npm run seed && npm run build && npm start & npx wait-on http://localhost:3000 && node --test tests/integration'",
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "prisma": {
@@ -40,19 +40,20 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.0.7",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/bcryptjs": "^2.4.6",
     "@types/leaflet": "^1.9.8",
     "@types/node": "^20.10.6",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.0.7",
     "postcss": "^8.4.32",
+    "supertest": "^6.3.3",
     "tailwindcss": "^4.1.17",
     "ts-node": "^10.9.2",
-    "supertest": "^7.3.0",
-    "cross-env": "^7.0.3",
     "typescript": "^5.3.3",
     "wait-on": "^9.0.3"
   }
