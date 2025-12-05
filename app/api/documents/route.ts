@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/options'
 import { prisma } from '@/lib/prisma'
+import { requireRoles } from '@/app/lib/auth'
 import { z } from 'zod'
 
 const documentSchema = z.object({
@@ -30,9 +31,15 @@ export async function GET(req: Request) {
     // Filter by visibility based on user role
     if (!session) {
       where.visibility = 'PUBLIC'
-    } else if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      where.visibility = {
-        in: ['PUBLIC', 'MEMBERS_ONLY'],
+    } else {
+      const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+      if (!roleCheck) {
+        // roleCheck == null means user has a role in allowed list
+        // do nothing (admin can see all)
+      } else {
+        // roleCheck is a NextResponse (unauthorized or forbidden) — but we still want to return member-visible docs for normal users
+        // So set visibility for non-admins
+        where.visibility = { in: ['PUBLIC', 'MEMBERS_ONLY'] }
       }
     }
 
@@ -56,9 +63,8 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const roleCheck2 = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck2) return roleCheck2
 
     const body = await req.json()
     const data = documentSchema.parse(body)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/options'
 import { prisma } from '@/lib/prisma'
+import { requireRoles } from '@/app/lib/auth'
 
 export async function PATCH(
   request: Request,
@@ -10,14 +11,8 @@ export async function PATCH(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // @ts-ignore
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const body = await request.json()
     const { role, verified, membershipTier } = body
@@ -48,14 +43,8 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // @ts-ignore
-    if (session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const roleCheck2 = requireRoles(session, ['SUPER_ADMIN'])
+    if (roleCheck2) return roleCheck2
 
     await prisma.user.delete({
       where: { id: params.id }
