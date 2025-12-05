@@ -41,4 +41,16 @@ Next steps I can take (pick any) — I can proceed with these automatically:
 - Open a remote PR (requires push permission and remote configured) with the branch `review/ts-and-security-fixes`.
 - Audit API routes for missing authorization checks and add protective middleware or explicit guards.
 
+Actions completed in this run:
+
+- Added integration-test skeletons under `tests/integration/` and a README to guide expansion.
+- Updated CI (`.github/workflows/ci.yml`) to run `npm test` in addition to type-check and lint.
+- Added a pull-request template at `.github/PULL_REQUEST_TEMPLATE.md`.
+
+Suggested immediate follow-ups:
+
+- Expand integration tests to use `supertest` against a running dev server and add DB fixtures.
+- Run a staging deploy and perform manual smoke tests (login, application submission, admin approval).
+- Optionally, remove plaintext seed credentials from `prisma/seed.ts` or restrict seed execution.
+
 If you want me to push the branch and open a PR, grant or confirm remote repo access and preferred base branch.
