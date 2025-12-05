@@ -1,20 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/options'
+import { requireRoles } from '@/app/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // @ts-ignore
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const roleCheck = requireRoles(session, ['ADMIN', 'SUPER_ADMIN'])
+    if (roleCheck) return roleCheck
 
     const members = await prisma.user.findMany({
       select: {
