@@ -23,6 +23,10 @@ jobs:
         run: npm run lint --if-present
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma db push --accept-data-loss
+      - name: Seed database
+        run: npm run seed
       - name: Build
         run: npm run build
       - name: Start server (background)
@@ -31,5 +35,5 @@ jobs:
           echo "Started server"
       - name: Wait for server
         run: npx wait-on http://localhost:3000
-      - name: Run tests
-        run: npm test --if-present
+      - name: Run integration tests
+        run: npm run test:integration --if-present

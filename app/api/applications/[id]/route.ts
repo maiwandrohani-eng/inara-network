@@ -30,7 +30,7 @@ export async function PATCH(
     }
 
     let updateData: any = {
-      reviewedBy: session.user.id,
+      reviewedBy: session!.user.id,
       reviewDate: new Date(),
       reviewNotes,
     }
@@ -39,7 +39,7 @@ export async function PATCH(
       updateData = {
         ...updateData,
         status: 'APPROVED',
-        approvedBy: session.user.id,
+        approvedBy: session!.user.id,
         approvalDate: new Date(),
       }
 
@@ -59,7 +59,7 @@ export async function PATCH(
           type: 'APPLICATION_APPROVED',
           title: 'Application approved',
           description: `Application approved for ${application.organization.name}`,
-          userId: session.user.id,
+          userId: session!.user.id,
         },
       })
     } else if (action === 'reject') {
