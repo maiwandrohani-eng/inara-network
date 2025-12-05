@@ -48,20 +48,6 @@
     "dependent": "inara-network",
     "location": "/Users/maiwand/inara-network/node_modules/date-fns"
   },
-  "eslint": {
-    "current": "8.57.1",
-    "wanted": "8.57.1",
-    "latest": "9.39.1",
-    "dependent": "inara-network",
-    "location": "/Users/maiwand/inara-network/node_modules/eslint"
-  },
-  "eslint-config-next": {
-    "current": "14.2.33",
-    "wanted": "14.2.33",
-    "latest": "16.0.7",
-    "dependent": "inara-network",
-    "location": "/Users/maiwand/inara-network/node_modules/eslint-config-next"
-  },
   "lucide-react": {
     "current": "0.298.0",
     "wanted": "0.298.0",
